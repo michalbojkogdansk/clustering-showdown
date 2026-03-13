@@ -605,8 +605,8 @@ function renderDataTable(ds) {
 // INSIGHTS & CODE TABS
 // ============================================================
 function generateBusinessVerdict(km, db, datasetId, size) {
-  const totalPts = km.assignments.length;
-  const dbNoise = db.assignments.filter(a => a === -1).length;
+  const totalPts = km.points.length;
+  const dbNoise = db.noiseCount;
 
   // --- Anomaly Detection ---
   let noiseText = `KMeans forced all ${totalPts} data points into clusters — including outliers. Nothing is flagged for review. `;
@@ -633,7 +633,7 @@ function generateBusinessVerdict(km, db, datasetId, size) {
   }
 
   // --- Cluster Quality ---
-  const kmSil = km.silhouette, dbSil = db.silhouette;
+  const kmSil = km.silhouetteScore, dbSil = db.silhouetteScore;
   function silLabel(s) {
     if (s > 0.7) return 'Excellent separation — the groups are distinct and well-defined. High confidence in the segmentation.';
     if (s > 0.5) return 'Good separation — clusters are meaningful but some points sit near boundaries. Worth reviewing edge cases.';
@@ -1182,6 +1182,7 @@ function redrawCanvases() {
 function runAnalysis() {
   const btn = document.getElementById('run-btn');
   btn.classList.add('running');
+  btn.disabled = true;
   btn.textContent = '⏳ Running...';
 
   // Small delay so the UI updates before heavy computation
@@ -1211,6 +1212,7 @@ function runAnalysis() {
 
     btn.innerHTML = '▶ Run Analysis';
     btn.classList.remove('running');
+    btn.disabled = false;
   }, 30);
 }
 
