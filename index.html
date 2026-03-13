@@ -1,50 +1,168 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>DBSCAN vs KMeans — Clustering Showdown</title>
 <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+  }
+</script>
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" id="prism-dark" />
+<link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" id="prism-light" disabled />
 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
 <style>
   :root { --accent: #6366f1; --accent2: #f472b6; }
-  body { background: #0f0f1a; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
-  .glass-card { background: rgba(30,30,50,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(99,102,241,0.15); border-radius: 1rem; }
+
+  /* Dark mode (default) */
+  .dark body { background: #0f0f1a; color: #e2e8f0; }
+  .dark .glass-card { background: rgba(30,30,50,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(99,102,241,0.15); }
+  .dark .hero-gradient { background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(244,114,182,0.08) 100%); }
+  .dark canvas { background: rgba(15,15,30,0.8); }
+  .dark .data-table th { background: rgba(30,30,60,0.8); }
+  .dark .data-table td { border-color: rgba(100,116,139,0.15); }
+
+  /* Light mode */
+  html:not(.dark) body { background: #f8fafc; color: #1e293b; }
+  html:not(.dark) .glass-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(99,102,241,0.15); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  html:not(.dark) .hero-gradient { background: linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(244,114,182,0.04) 100%); }
+  html:not(.dark) canvas { background: rgba(248,250,252,0.95); border: 1px solid #e2e8f0; }
+  html:not(.dark) .text-slate-200 { color: #1e293b !important; }
+  html:not(.dark) .text-slate-300 { color: #334155 !important; }
+  html:not(.dark) .text-slate-400 { color: #64748b !important; }
+  html:not(.dark) .text-slate-500 { color: #94a3b8 !important; }
+  html:not(.dark) .text-slate-600 { color: #475569 !important; }
+  html:not(.dark) .bg-slate-800\/50 { background: rgba(241,245,249,0.8) !important; }
+  html:not(.dark) .border-slate-700\/50 { border-color: #e2e8f0 !important; }
+  html:not(.dark) .border-slate-800 { border-color: #e2e8f0 !important; }
+  html:not(.dark) .border-indigo-500\/10 { border-color: rgba(99,102,241,0.15) !important; }
+  html:not(.dark) .data-table th { background: rgba(241,245,249,0.9); color: #475569; }
+  html:not(.dark) .data-table td { border-color: #e2e8f0; color: #334155; }
+  html:not(.dark) .glow-indigo { box-shadow: 0 1px 8px rgba(99,102,241,0.1); }
+  html:not(.dark) .glow-pink { box-shadow: 0 1px 8px rgba(244,114,182,0.1); }
+  html:not(.dark) .dataset-btn { background: rgba(241,245,249,0.9) !important; border-color: #e2e8f0 !important; color: #334155 !important; }
+
+  body { font-family: 'Inter', system-ui, sans-serif; transition: background 0.3s, color 0.3s; }
+  .glass-card { border-radius: 1rem; transition: background 0.3s, border-color 0.3s; }
   .glow-indigo { box-shadow: 0 0 30px rgba(99,102,241,0.15); }
   .glow-pink { box-shadow: 0 0 30px rgba(244,114,182,0.15); }
-  canvas { border-radius: 0.75rem; background: rgba(15,15,30,0.8); }
+  canvas { border-radius: 0.75rem; width: 100%; height: 400px; }
   .dataset-btn.active { border-color: #6366f1 !important; background: rgba(99,102,241,0.15) !important; }
   .tab-btn.active { background: #6366f1 !important; color: white !important; }
   .metric-value { font-variant-numeric: tabular-nums; }
-  pre[class*="language-"] { border-radius: 0.75rem !important; margin: 0 !important; font-size: 0.82rem !important; }
+  pre[class*="language-"] { border-radius: 0.75rem !important; margin: 0 !important; font-size: 0.82rem !important; max-height: 500px; overflow: auto; }
   code[class*="language-"] { font-size: 0.82rem !important; }
-  .hero-gradient { background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(244,114,182,0.08) 100%); }
   .noise-point { opacity: 0.3; }
   input[type=range] { accent-color: #6366f1; }
-  .benchmark-bar { transition: width 0.5s cubic-bezier(0.4,0,0.2,1); border-radius: 0.25rem; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .fade-in { animation: fadeIn 0.4s ease-out; }
   .badge-algo { font-size: 0.65rem; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; font-weight: 700; text-transform: uppercase; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  .data-table th { padding: 6px 10px; text-align: left; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; position: sticky; top: 0; z-index: 1; }
+  .data-table td { padding: 4px 10px; border-bottom: 1px solid; }
+  .data-table-container { max-height: 280px; overflow: auto; border-radius: 0.5rem; }
+
+  .tooltip-box { position: relative; display: inline-flex; align-items: center; cursor: help; }
+  .tooltip-box .tooltip-text { visibility: hidden; opacity: 0; position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); padding: 8px 12px; border-radius: 8px; font-size: 0.72rem; line-height: 1.4; width: 260px; z-index: 50; transition: opacity 0.2s; pointer-events: none; }
+  .dark .tooltip-box .tooltip-text { background: #1e1e3a; color: #cbd5e1; border: 1px solid rgba(99,102,241,0.2); }
+  html:not(.dark) .tooltip-box .tooltip-text { background: #fff; color: #475569; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .tooltip-box:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+  .run-btn { transition: all 0.2s; }
+  .run-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(99,102,241,0.3); }
+  .run-btn:active { transform: translateY(0); }
+  .run-btn.running { animation: pulse 0.8s ease-in-out; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); } 50% { box-shadow: 0 0 20px 5px rgba(99,102,241,0.2); } }
+
+  .waiting-state { display: flex; align-items: center; justify-content: center; height: 400px; width: 100%; border-radius: 0.75rem; }
+  .dark .waiting-state { background: rgba(15,15,30,0.8); color: #64748b; }
+  html:not(.dark) .waiting-state { background: rgba(248,250,252,0.95); border: 1px solid #e2e8f0; color: #94a3b8; }
 </style>
 </head>
 <body class="min-h-screen">
 
 <!-- HERO HEADER -->
-<header class="hero-gradient py-6 px-6 text-center border-b border-indigo-500/10">
-  <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-1">
-    <span class="text-indigo-400">KMeans</span>
-    <span class="text-slate-500 mx-2">vs</span>
-    <span class="text-pink-400">DBSCAN</span>
-  </h1>
-  <p class="text-slate-400 text-sm max-w-xl mx-auto">Interactive clustering algorithm comparison — pick a dataset, tweak parameters, and watch them compete in real time.</p>
+<header class="hero-gradient py-5 px-6 border-b border-indigo-500/10">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight mb-0.5">
+        <span class="text-indigo-400">KMeans</span>
+        <span class="text-slate-500 mx-2">vs</span>
+        <span class="text-pink-400">DBSCAN</span>
+      </h1>
+      <p class="text-slate-400 text-sm max-w-xl">Interactive clustering comparison — pick a dataset, tweak parameters, hit <strong>Run Analysis</strong>.</p>
+    </div>
+    <button id="theme-toggle" onclick="toggleTheme()" class="btn btn-sm btn-ghost text-lg" title="Toggle dark/light mode">🌙</button>
+  </div>
 </header>
 
 <!-- DATASET PICKER -->
-<section class="px-4 md:px-8 py-5">
+<section class="px-4 md:px-8 py-4">
   <div class="flex flex-wrap justify-center gap-3" id="dataset-picker"></div>
+</section>
+
+<!-- PARAMETERS & RUN BUTTON -->
+<section class="px-4 md:px-8 pb-4">
+  <div class="glass-card p-5">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
+      <!-- KMeans params -->
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="badge-algo bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">KMeans</span>
+          <span class="text-xs text-slate-500">Parameters</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="text-xs text-slate-400 w-32 flex items-center gap-1">
+            Clusters (k): <strong class="text-indigo-300" id="k-display">3</strong>
+            <span class="tooltip-box">
+              <span class="text-slate-500">ⓘ</span>
+              <span class="tooltip-text"><strong>k (Number of Clusters)</strong><br/>The number of groups KMeans will divide data into. You must choose this upfront. Too few → merges distinct groups. Too many → splits natural groups. Use the Elbow Method or Silhouette Score to find optimal k.</span>
+            </span>
+          </label>
+          <input type="range" id="slider-k" min="2" max="10" step="1" value="3" class="range range-xs range-primary flex-1" oninput="kmeansK=+this.value;document.getElementById('k-display').textContent=this.value" />
+        </div>
+      </div>
+      <!-- DBSCAN params -->
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="badge-algo bg-pink-500/20 text-pink-300 border border-pink-500/30">DBSCAN</span>
+          <span class="text-xs text-slate-500">Parameters</span>
+        </div>
+        <div class="flex items-center gap-3 mb-2">
+          <label class="text-xs text-slate-400 w-32 flex items-center gap-1">
+            Epsilon (ε): <strong class="text-pink-300" id="eps-display">12</strong>
+            <span class="tooltip-box">
+              <span class="text-slate-500">ⓘ</span>
+              <span class="tooltip-text"><strong>ε (Epsilon / Neighborhood Radius)</strong><br/>The maximum distance two points can be apart to be considered neighbors. Small ε → many small clusters + more noise. Large ε → fewer bigger clusters. Depends on your data's scale — always normalize features first!</span>
+            </span>
+          </label>
+          <input type="range" id="slider-eps" min="2" max="30" step="0.5" value="12" class="range range-xs range-secondary flex-1" oninput="dbEps=+this.value;document.getElementById('eps-display').textContent=this.value" />
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="text-xs text-slate-400 w-32 flex items-center gap-1">
+            Min Points: <strong class="text-pink-300" id="minpts-display">5</strong>
+            <span class="tooltip-box">
+              <span class="text-slate-500">ⓘ</span>
+              <span class="tooltip-text"><strong>minPoints (Minimum Neighbors)</strong><br/>How many neighbors a point must have within ε to be a "core point" that starts a cluster. Higher → denser clusters required, more noise. Rule of thumb: start with 2× number of dimensions. For 2D data, try 4-5.</span>
+            </span>
+          </label>
+          <input type="range" id="slider-minpts" min="2" max="15" step="1" value="5" class="range range-xs range-secondary flex-1" oninput="dbMinPts=+this.value;document.getElementById('minpts-display').textContent=this.value" />
+        </div>
+      </div>
+      <!-- Run button -->
+      <div class="flex justify-center lg:justify-end">
+        <button id="run-btn" onclick="runAnalysis()" class="run-btn btn btn-md bg-indigo-600 hover:bg-indigo-500 text-white border-0 gap-2 px-8 font-bold text-sm">
+          ▶ Run Analysis
+        </button>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- MAIN CONTENT -->
@@ -60,8 +178,12 @@
         </div>
         <span class="text-xs text-slate-500" id="kmeans-time"></span>
       </div>
-      <canvas id="canvas-kmeans" width="560" height="400"></canvas>
-      <div class="mt-3 space-y-2" id="kmeans-controls"></div>
+      <div id="kmeans-canvas-wrapper">
+        <div class="waiting-state" id="kmeans-waiting">
+          <span class="text-sm">Select a dataset and click <strong>Run Analysis</strong></span>
+        </div>
+        <canvas id="canvas-kmeans" style="display:none;"></canvas>
+      </div>
     </div>
     <!-- DBSCAN panel -->
     <div class="glass-card glow-pink p-4 fade-in">
@@ -72,24 +194,38 @@
         </div>
         <span class="text-xs text-slate-500" id="dbscan-time"></span>
       </div>
-      <canvas id="canvas-dbscan" width="560" height="400"></canvas>
-      <div class="mt-3 space-y-2" id="dbscan-controls"></div>
+      <div id="dbscan-canvas-wrapper">
+        <div class="waiting-state" id="dbscan-waiting">
+          <span class="text-sm">Select a dataset and click <strong>Run Analysis</strong></span>
+        </div>
+        <canvas id="canvas-dbscan" style="display:none;"></canvas>
+      </div>
     </div>
   </div>
 
   <!-- Benchmark row -->
-  <div class="glass-card p-5 mb-5 fade-in" id="benchmark-section">
+  <div class="glass-card p-5 mb-5 fade-in" id="benchmark-section" style="display:none;">
     <h2 class="text-lg font-bold mb-4 text-slate-200">📊 Benchmark Comparison</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="benchmark-cards"></div>
   </div>
 
-  <!-- Tabs: Key Insights / Code Samples -->
+  <!-- Data Preview -->
+  <div class="glass-card p-5 mb-5 fade-in" id="data-section" style="display:none;">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-bold text-slate-200">📋 Dataset Preview</h2>
+      <span class="text-xs text-slate-500" id="data-count"></span>
+    </div>
+    <div class="data-table-container" id="data-table-container"></div>
+  </div>
+
+  <!-- Tabs: Key Insights / Code Samples / Algorithm Code -->
   <div class="glass-card p-5 fade-in">
-    <div class="flex gap-2 mb-4">
+    <div class="flex flex-wrap gap-2 mb-4">
       <button class="tab-btn active btn btn-sm btn-ghost" data-tab="insights">💡 Key Insights</button>
-      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-kmeans">🐍 KMeans Code</button>
-      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-dbscan">🐍 DBSCAN Code</button>
-      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-compare">🐍 Compare & Benchmark</button>
+      <button class="tab-btn btn btn-sm btn-ghost" data-tab="algo-code">⚙️ Algorithm Code (JS)</button>
+      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-kmeans">🐍 KMeans (Python)</button>
+      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-dbscan">🐍 DBSCAN (Python)</button>
+      <button class="tab-btn btn btn-sm btn-ghost" data-tab="code-compare">🐍 Benchmark Script</button>
     </div>
     <div id="tab-content"></div>
   </div>
@@ -101,6 +237,35 @@
 
 <script>
 // ============================================================
+// THEME
+// ============================================================
+function getPreferredTheme() {
+  const saved = localStorage.getItem('clustering-theme');
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  document.getElementById('theme-toggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+  document.getElementById('prism-dark').disabled = theme !== 'dark';
+  document.getElementById('prism-light').disabled = theme === 'dark';
+  localStorage.setItem('clustering-theme', theme);
+  // Re-highlight code if visible
+  setTimeout(() => Prism.highlightAll(), 50);
+  // Redraw canvases if results exist
+  if (lastKmResult && lastDbResult) redrawCanvases();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// Apply on load
+applyTheme(getPreferredTheme());
+
+// ============================================================
 // DATASETS
 // ============================================================
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -111,38 +276,29 @@ function generateDataset(id) {
   const pts = [];
 
   if (id === 'server-logs') {
-    // Cluster 1: Normal traffic (low CPU, low mem)
-    for(let i=0;i<80;i++) pts.push({x:20+gauss()*8,y:25+gauss()*7,cluster:-1});
-    // Cluster 2: High load (high CPU, high mem)
-    for(let i=0;i<60;i++) pts.push({x:70+gauss()*7,y:72+gauss()*8,cluster:-1});
-    // Cluster 3: Memory leak (low CPU, high mem)
-    for(let i=0;i<40;i++) pts.push({x:25+gauss()*6,y:78+gauss()*5,cluster:-1});
-    // Anomalies (scattered)
-    for(let i=0;i<15;i++) pts.push({x:rng()*100,y:rng()*100,cluster:-1});
-    return { id, name:'Server Logs', description:'CPU vs Memory usage with anomalous requests', xLabel:'CPU Usage (%)', yLabel:'Memory Usage (%)', icon:'🖥️', points:pts };
+    for(let i=0;i<80;i++) pts.push({x:20+gauss()*8,y:25+gauss()*7});
+    for(let i=0;i<60;i++) pts.push({x:70+gauss()*7,y:72+gauss()*8});
+    for(let i=0;i<40;i++) pts.push({x:25+gauss()*6,y:78+gauss()*5});
+    for(let i=0;i<15;i++) pts.push({x:rng()*100,y:rng()*100});
+    return { id, name:'Server Logs', xLabel:'CPU Usage (%)', yLabel:'Memory Usage (%)', icon:'🖥️', points:pts,
+      columns:['CPU Usage (%)','Memory Usage (%)'] };
   }
   if (id === 'sales-data') {
-    // Bargain hunters (low spend, high freq)
-    for(let i=0;i<70;i++) pts.push({x:10+gauss()*6,y:70+gauss()*8,cluster:-1});
-    // Whales (high spend, medium freq)
-    for(let i=0;i<35;i++) pts.push({x:80+gauss()*8,y:50+gauss()*10,cluster:-1});
-    // Casual buyers (medium spend, low freq)
-    for(let i=0;i<55;i++) pts.push({x:45+gauss()*10,y:18+gauss()*7,cluster:-1});
-    // VIP tier (very high spend, high freq) — small tight cluster
-    for(let i=0;i<20;i++) pts.push({x:88+gauss()*4,y:85+gauss()*4,cluster:-1});
-    // Noise
-    for(let i=0;i<12;i++) pts.push({x:rng()*100,y:rng()*100,cluster:-1});
-    return { id, name:'Sales Data', description:'Average order value vs purchase frequency', xLabel:'Avg Order ($)', yLabel:'Purchase Freq (orders/yr)', icon:'🛒', points:pts };
+    for(let i=0;i<70;i++) pts.push({x:10+gauss()*6,y:70+gauss()*8});
+    for(let i=0;i<35;i++) pts.push({x:80+gauss()*8,y:50+gauss()*10});
+    for(let i=0;i<55;i++) pts.push({x:45+gauss()*10,y:18+gauss()*7});
+    for(let i=0;i<20;i++) pts.push({x:88+gauss()*4,y:85+gauss()*4});
+    for(let i=0;i<12;i++) pts.push({x:rng()*100,y:rng()*100});
+    return { id, name:'Sales Data', xLabel:'Avg Order ($)', yLabel:'Purchase Freq (orders/yr)', icon:'🛒', points:pts,
+      columns:['Avg Order ($)','Purchase Freq'] };
   }
-  // geo-clusters — crescent + blobs (hard for KMeans)
-  // Crescent moon shape
-  for(let i=0;i<90;i++){const a=Math.PI*rng();const r=35+gauss()*3;pts.push({x:50+r*Math.cos(a),y:40+r*Math.sin(a),cluster:-1});}
-  for(let i=0;i<70;i++){const a=Math.PI*rng();const r=20+gauss()*3;pts.push({x:55+r*Math.cos(a),y:47-r*Math.sin(a),cluster:-1});}
-  // Dense blob
-  for(let i=0;i<50;i++) pts.push({x:20+gauss()*4,y:75+gauss()*4,cluster:-1});
-  // Noise
-  for(let i=0;i<18;i++) pts.push({x:rng()*100,y:rng()*100,cluster:-1});
-  return { id, name:'Geo Clusters', description:'Non-convex shapes — crescent moon + dense blob', xLabel:'Longitude (scaled)', yLabel:'Latitude (scaled)', icon:'🌍', points:pts };
+  // geo-clusters
+  for(let i=0;i<90;i++){const a=Math.PI*rng();const r=35+gauss()*3;pts.push({x:50+r*Math.cos(a),y:40+r*Math.sin(a)});}
+  for(let i=0;i<70;i++){const a=Math.PI*rng();const r=20+gauss()*3;pts.push({x:55+r*Math.cos(a),y:47-r*Math.sin(a)});}
+  for(let i=0;i<50;i++) pts.push({x:20+gauss()*4,y:75+gauss()*4});
+  for(let i=0;i<18;i++) pts.push({x:rng()*100,y:rng()*100});
+  return { id, name:'Geo Clusters', xLabel:'Longitude (scaled)', yLabel:'Latitude (scaled)', icon:'🌍', points:pts,
+    columns:['Longitude','Latitude'] };
 }
 
 const DATASETS_META = [
@@ -158,8 +314,7 @@ function euclidean(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2)}
 
 function runKMeans(rawPoints, k, maxIter=100) {
   const t0 = performance.now();
-  const pts = rawPoints.map(p=>({...p,cluster:-1}));
-  // Init centroids via KMeans++ 
+  const pts = rawPoints.map(p=>({x:p.x,y:p.y,cluster:-1}));
   const rng = mulberry32(7);
   const centroids = [pts[Math.floor(rng()*pts.length)]];
   while(centroids.length < k){
@@ -170,9 +325,7 @@ function runKMeans(rawPoints, k, maxIter=100) {
   }
   let cents = centroids.map(c=>({x:c.x,y:c.y}));
   for(let iter=0;iter<maxIter;iter++){
-    // Assign
     pts.forEach(p=>{let best=0,bestD=Infinity;cents.forEach((c,i)=>{const d=euclidean(p,c);if(d<bestD){bestD=d;best=i;}});p.cluster=best;});
-    // Update
     const newCents = cents.map(()=>({sx:0,sy:0,n:0}));
     pts.forEach(p=>{newCents[p.cluster].sx+=p.x;newCents[p.cluster].sy+=p.y;newCents[p.cluster].n++;});
     let converged=true;
@@ -190,7 +343,7 @@ function runKMeans(rawPoints, k, maxIter=100) {
 
 function runDBSCAN(rawPoints, epsilon, minPts) {
   const t0 = performance.now();
-  const pts = rawPoints.map(p=>({...p,cluster:-1}));
+  const pts = rawPoints.map(p=>({x:p.x,y:p.y,cluster:-1}));
   const visited = new Set();
   let clusterIdx = 0;
 
@@ -220,7 +373,6 @@ function runDBSCAN(rawPoints, epsilon, minPts) {
   return { points:pts, clusterCount:clusterIdx, noiseCount, executionMs:ms, silhouetteScore:silhouette(pts,clusterIdx) };
 }
 
-// Simplified silhouette score
 function silhouette(pts, k) {
   if(k<2) return 0;
   const clustered = pts.filter(p=>p.cluster>=0);
@@ -245,16 +397,30 @@ const PALETTE = [
   '#6366f1','#f472b6','#34d399','#fbbf24','#60a5fa','#f87171',
   '#a78bfa','#2dd4bf','#fb923c','#e879f9','#4ade80','#38bdf8'
 ];
-const NOISE_COLOR = 'rgba(100,116,139,0.25)';
+
+function getGridColor() {
+  return document.documentElement.classList.contains('dark') ? 'rgba(100,116,139,0.1)' : 'rgba(100,116,139,0.15)';
+}
+function getTickColor() {
+  return document.documentElement.classList.contains('dark') ? '#475569' : '#94a3b8';
+}
+function getLabelColor() {
+  return document.documentElement.classList.contains('dark') ? '#64748b' : '#64748b';
+}
+function getNoiseColor() {
+  return document.documentElement.classList.contains('dark') ? 'rgba(100,116,139,0.25)' : 'rgba(100,116,139,0.35)';
+}
 
 // ============================================================
 // RENDERING
 // ============================================================
 function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
   const canvas = document.getElementById(canvasId);
+  canvas.style.display = 'block';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
   canvas.width = W * dpr; canvas.height = H * dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
@@ -263,7 +429,7 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
   const pw = W-pad.left-pad.right, ph = H-pad.top-pad.bottom;
 
   // Grid
-  ctx.strokeStyle = 'rgba(100,116,139,0.1)';
+  ctx.strokeStyle = getGridColor();
   ctx.lineWidth = 1;
   for(let i=0;i<=5;i++){
     const x=pad.left+(pw/5)*i, y=pad.top+(ph/5)*i;
@@ -272,14 +438,14 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
   }
 
   // Axis labels
-  ctx.fillStyle='#64748b'; ctx.font='11px system-ui';
+  ctx.fillStyle=getLabelColor(); ctx.font='11px system-ui';
   ctx.textAlign='center';
   ctx.fillText(xLabel, pad.left+pw/2, H-4);
   ctx.save(); ctx.translate(12, pad.top+ph/2); ctx.rotate(-Math.PI/2);
   ctx.fillText(yLabel, 0, 0); ctx.restore();
 
-  // Tick labels
-  ctx.font='9px system-ui'; ctx.fillStyle='#475569';
+  // Ticks
+  ctx.font='9px system-ui'; ctx.fillStyle=getTickColor();
   for(let i=0;i<=5;i++){
     ctx.textAlign='center';
     ctx.fillText(Math.round(i*20), pad.left+(pw/5)*i, pad.top+ph+14);
@@ -287,9 +453,10 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
     ctx.fillText(Math.round(i*20), pad.left-6, pad.top+ph-(ph/5)*i+3);
   }
 
-  // Points
   const scale = (v, max) => (v / 100) * max;
-  // Draw noise first (behind)
+  const NOISE_COLOR = getNoiseColor();
+
+  // Noise
   result.points.filter(p=>p.cluster===-1).forEach(p=>{
     const px = pad.left + scale(p.x, pw);
     const py = pad.top + ph - scale(p.y, ph);
@@ -297,7 +464,7 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
     ctx.fillStyle=NOISE_COLOR; ctx.fill();
     ctx.strokeStyle='rgba(100,116,139,0.3)'; ctx.lineWidth=0.5; ctx.stroke();
   });
-  // Then clustered points
+  // Clustered
   result.points.filter(p=>p.cluster>=0).forEach(p=>{
     const px = pad.left + scale(p.x, pw);
     const py = pad.top + ph - scale(p.y, ph);
@@ -316,7 +483,6 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
       ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke();
       ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2);
       ctx.fillStyle=PALETTE[i%PALETTE.length]; ctx.globalAlpha=0.5; ctx.fill(); ctx.globalAlpha=1;
-      // Cross
       ctx.beginPath();ctx.moveTo(px-5,py);ctx.lineTo(px+5,py);ctx.moveTo(px,py-5);ctx.lineTo(px,py+5);
       ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
     });
@@ -327,16 +493,15 @@ function drawScatter(canvasId, result, xLabel, yLabel, showCentroids) {
 // BENCHMARK CARDS
 // ============================================================
 function renderBenchmarks(km, db) {
+  document.getElementById('benchmark-section').style.display = 'block';
   const cards = [
-    { label:'⏱️ Execution Time', kmVal:`${km.executionMs.toFixed(1)}ms`, dbVal:`${db.executionMs.toFixed(1)}ms`, winner: km.executionMs<db.executionMs?'kmeans':'dbscan', kmPct:km.executionMs, dbPct:db.executionMs },
+    { label:'⏱️ Execution Time', kmVal:`${km.executionMs.toFixed(1)}ms`, dbVal:`${db.executionMs.toFixed(1)}ms`, winner: km.executionMs<db.executionMs?'kmeans':'dbscan' },
     { label:'📦 Clusters Found', kmVal:km.clusterCount, dbVal:db.clusterCount, winner:null },
     { label:'🔇 Noise Points', kmVal:km.noiseCount, dbVal:db.noiseCount, winner:null },
     { label:'📈 Silhouette Score', kmVal:km.silhouetteScore.toFixed(3), dbVal:db.silhouetteScore.toFixed(3), winner:km.silhouetteScore>db.silhouetteScore?'kmeans':'dbscan' },
   ];
   const container = document.getElementById('benchmark-cards');
-  container.innerHTML = cards.map(c => {
-    const maxT = Math.max(c.kmPct||1, c.dbPct||1);
-    return `
+  container.innerHTML = cards.map(c => `
     <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
       <div class="text-xs text-slate-400 mb-3">${c.label}</div>
       <div class="flex items-center justify-between mb-1.5">
@@ -354,8 +519,22 @@ function renderBenchmarks(km, db) {
         <span class="text-sm font-mono font-bold text-pink-300 metric-value">${c.dbVal}</span>
       </div>
       ${c.winner ? `<div class="mt-2 text-[10px] text-center py-0.5 rounded-full ${c.winner==='kmeans'?'bg-indigo-500/15 text-indigo-300':'bg-pink-500/15 text-pink-300'}">${c.winner==='kmeans'?'KMeans':'DBSCAN'} wins</div>` : ''}
-    </div>`;
-  }).join('');
+    </div>`).join('');
+}
+
+// ============================================================
+// DATA TABLE
+// ============================================================
+function renderDataTable(ds) {
+  document.getElementById('data-section').style.display = 'block';
+  document.getElementById('data-count').textContent = `${ds.points.length} data points`;
+  const cols = ds.columns;
+  let html = '<table class="data-table"><thead><tr><th>#</th><th>' + cols[0] + '</th><th>' + cols[1] + '</th></tr></thead><tbody>';
+  ds.points.forEach((p, i) => {
+    html += `<tr><td class="text-slate-500">${i+1}</td><td>${p.x.toFixed(2)}</td><td>${p.y.toFixed(2)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('data-table-container').innerHTML = html;
 }
 
 // ============================================================
@@ -365,7 +544,7 @@ const INSIGHTS = {
   'server-logs': `
     <h3 class="text-base font-bold text-slate-200 mb-2">🖥️ Server Logs — What to Notice</h3>
     <ul class="list-disc list-inside text-sm text-slate-400 space-y-1.5">
-      <li><strong class="text-indigo-300">KMeans</strong> forces every point into a cluster — including anomalies. This means your alerting system would miss genuinely suspicious requests.</li>
+      <li><strong class="text-indigo-300">KMeans</strong> forces every point into a cluster — including anomalies. Your alerting system would miss genuinely suspicious requests.</li>
       <li><strong class="text-pink-300">DBSCAN</strong> naturally flags sparse outliers as <em>noise</em> (grey points), making it ideal for anomaly detection in monitoring dashboards.</li>
       <li>Try lowering DBSCAN's <code class="text-pink-200">ε</code> — you'll see more points flagged as anomalies, giving tighter cluster boundaries.</li>
       <li>KMeans with <code class="text-indigo-200">k=3</code> works well here because the clusters are roughly spherical, but it can't tell you <em>which</em> points don't belong.</li>
@@ -373,8 +552,8 @@ const INSIGHTS = {
   'sales-data': `
     <h3 class="text-base font-bold text-slate-200 mb-2">🛒 Sales Data — What to Notice</h3>
     <ul class="list-disc list-inside text-sm text-slate-400 space-y-1.5">
-      <li><strong class="text-indigo-300">KMeans</strong> does well when you already know how many customer segments you're looking for (<code class="text-indigo-200">k=4</code>: bargain hunters, casuals, whales, VIPs).</li>
-      <li><strong class="text-pink-300">DBSCAN</strong> can <em>discover</em> the number of segments for you — and it separates one-off weird transactions as noise.</li>
+      <li><strong class="text-indigo-300">KMeans</strong> does well when you already know how many customer segments you want (<code class="text-indigo-200">k=4</code>: bargain hunters, casuals, whales, VIPs).</li>
+      <li><strong class="text-pink-300">DBSCAN</strong> can <em>discover</em> the number of segments automatically — and it separates one-off weird transactions as noise.</li>
       <li>This is a common marketing analytics scenario: RFM segmentation. KMeans is the industry standard, but DBSCAN avoids forcing edge-case customers into segments they don't belong to.</li>
       <li>Try increasing <code class="text-indigo-200">k</code> to 6 — KMeans starts splitting natural groups in half. DBSCAN stays stable.</li>
     </ul>`,
@@ -387,6 +566,117 @@ const INSIGHTS = {
       <li>This is the go-to demo for explaining <em>when not to use KMeans</em>. Great for stakeholder buy-in when proposing DBSCAN.</li>
     </ul>`
 };
+
+const ALGO_CODE = `<div class="space-y-4">
+<h3 class="text-base font-bold text-slate-200 mb-1">⚙️ Actual JavaScript Algorithms Used in This Demo</h3>
+<p class="text-xs text-slate-400 mb-3">This is the exact code running in your browser right now. No libraries — pure JS implementations.</p>
+<h4 class="text-sm font-semibold text-indigo-300 mb-1">KMeans (with KMeans++ initialization)</h4>
+<pre><code class="language-javascript">function runKMeans(rawPoints, k, maxIter = 100) {
+  const pts = rawPoints.map(p => ({ x: p.x, y: p.y, cluster: -1 }));
+
+  // KMeans++ initialization: pick first centroid randomly,
+  // then pick subsequent centroids proportional to squared distance
+  const centroids = [pts[Math.floor(Math.random() * pts.length)]];
+  while (centroids.length < k) {
+    const dists = pts.map(p =>
+      Math.min(...centroids.map(c => euclidean(p, c) ** 2))
+    );
+    const sum = dists.reduce((a, b) => a + b, 0);
+    let r = Math.random() * sum, acc = 0;
+    for (let i = 0; i < dists.length; i++) {
+      acc += dists[i];
+      if (acc >= r) { centroids.push(pts[i]); break; }
+    }
+  }
+
+  let cents = centroids.map(c => ({ x: c.x, y: c.y }));
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    // ASSIGN: each point to nearest centroid
+    pts.forEach(p => {
+      let best = 0, bestD = Infinity;
+      cents.forEach((c, i) => {
+        const d = euclidean(p, c);
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      p.cluster = best;
+    });
+
+    // UPDATE: move centroids to cluster mean
+    const sums = cents.map(() => ({ sx: 0, sy: 0, n: 0 }));
+    pts.forEach(p => {
+      sums[p.cluster].sx += p.x;
+      sums[p.cluster].sy += p.y;
+      sums[p.cluster].n++;
+    });
+
+    let converged = true;
+    cents.forEach((c, i) => {
+      if (sums[i].n === 0) return;
+      const nx = sums[i].sx / sums[i].n;
+      const ny = sums[i].sy / sums[i].n;
+      if (Math.abs(nx - c.x) > 0.001) converged = false;
+      c.x = nx; c.y = ny;
+    });
+    if (converged) break;  // No centroids moved → done
+  }
+  return { points: pts, centroids: cents };
+}</code></pre>
+<h4 class="text-sm font-semibold text-pink-300 mt-4 mb-1">DBSCAN (Density-Based Spatial Clustering)</h4>
+<pre><code class="language-javascript">function runDBSCAN(rawPoints, epsilon, minPts) {
+  const pts = rawPoints.map(p => ({ x: p.x, y: p.y, cluster: -1 }));
+  const visited = new Set();
+  let clusterIdx = 0;
+
+  // Find all points within epsilon distance
+  function regionQuery(p) {
+    return pts.filter(q => euclidean(p, q) <= epsilon);
+  }
+
+  pts.forEach((p, i) => {
+    if (visited.has(i)) return;
+    visited.add(i);
+
+    let neighbors = regionQuery(p);
+
+    // Not enough neighbors → noise (for now)
+    if (neighbors.length < minPts) {
+      p.cluster = -1;
+      return;
+    }
+
+    // Start a new cluster
+    p.cluster = clusterIdx;
+    const seed = [...neighbors];
+
+    // Expand cluster: check each neighbor's neighborhood
+    for (let si = 0; si < seed.length; si++) {
+      const q = seed[si];
+      const qi = pts.indexOf(q);
+
+      if (!visited.has(qi)) {
+        visited.add(qi);
+        const qNeighbors = regionQuery(q);
+        // If q is also a core point, add its neighbors
+        if (qNeighbors.length >= minPts) {
+          seed.push(...qNeighbors.filter(n =>
+            !seed.includes(n)
+          ));
+        }
+      }
+      // Claim border points for this cluster
+      if (q.cluster === -1) q.cluster = clusterIdx;
+    }
+    clusterIdx++;
+  });
+
+  return {
+    points: pts,
+    clusterCount: clusterIdx,
+    noiseCount: pts.filter(p => p.cluster === -1).length
+  };
+}</code></pre>
+</div>`;
 
 const CODE = {
   'code-kmeans': `<pre><code class="language-python">import numpy as np
@@ -435,8 +725,7 @@ ax1.legend(*scatter.legend_elements(), title="Clusters")
 ax2.plot(K, inertias, 'bo-')
 ax2.set_xlabel('k'); ax2.set_ylabel('Inertia')
 ax2.set_title('Elbow Method')
-plt.tight_layout(); plt.show()
-</code></pre>`,
+plt.tight_layout(); plt.show()</code></pre>`,
   'code-dbscan': `<pre><code class="language-python">import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
@@ -488,8 +777,7 @@ for label, col in zip(sorted(unique_labels), colors):
                   c=[col], s=30, alpha=0.7,
                   label=f'Cluster {label}')
 ax.set_title(f'DBSCAN (ε={0.3}, minPts={5})')
-ax.legend(); plt.tight_layout(); plt.show()
-</code></pre>`,
+ax.legend(); plt.tight_layout(); plt.show()</code></pre>`,
   'code-compare': `<pre><code class="language-python">"""
 Full Benchmark: KMeans vs DBSCAN
 Run this script to compare both algorithms across
@@ -552,26 +840,21 @@ for name, X in datasets.items():
 
 # Pretty print results table
 df = pd.DataFrame(results)
-print(df.to_string(index=False))
-
-#                 Dataset Algorithm  Clusters  Noise  Silhouette  Time (ms)
-#            Blobs (easy)   KMeans         4      0       0.587       12.3
-#            Blobs (easy)   DBSCAN         4      7       0.601        3.1
-#            Moons (hard)   KMeans         4      0       0.364       11.8
-#            Moons (hard)   DBSCAN         2      5       0.489        2.7
-#             Anisotropic   KMeans         4      0       0.412       12.1
-#             Anisotropic   DBSCAN         3     12       0.445        3.4
-</code></pre>`
+print(df.to_string(index=False))</code></pre>`
 };
 
 // ============================================================
-// STATE & CONTROLS
+// STATE
 // ============================================================
 let currentDataset = 'server-logs';
 let kmeansK = 3;
 let dbEps = 12;
 let dbMinPts = 5;
 let currentTab = 'insights';
+let lastKmResult = null;
+let lastDbResult = null;
+let lastDataset = null;
+let hasRun = false;
 
 const DEFAULTS = {
   'server-logs': { k:3, eps:12, minPts:5 },
@@ -579,6 +862,9 @@ const DEFAULTS = {
   'geo-clusters':{ k:3, eps:7, minPts:5 },
 };
 
+// ============================================================
+// UI
+// ============================================================
 function renderDatasetPicker() {
   const el = document.getElementById('dataset-picker');
   el.innerHTML = DATASETS_META.map(d => `
@@ -590,21 +876,13 @@ function renderDatasetPicker() {
   `).join('');
 }
 
-function renderControls() {
-  document.getElementById('kmeans-controls').innerHTML = `
-    <div class="flex items-center gap-3">
-      <label class="text-xs text-slate-400 w-28">Clusters (k): <strong class="text-indigo-300">${kmeansK}</strong></label>
-      <input type="range" min="2" max="10" step="1" value="${kmeansK}" class="range range-xs range-primary flex-1" oninput="kmeansK=+this.value;runAll()" />
-    </div>`;
-  document.getElementById('dbscan-controls').innerHTML = `
-    <div class="flex items-center gap-3">
-      <label class="text-xs text-slate-400 w-28">Epsilon (ε): <strong class="text-pink-300">${dbEps}</strong></label>
-      <input type="range" min="2" max="30" step="0.5" value="${dbEps}" class="range range-xs range-secondary flex-1" oninput="dbEps=+this.value;runAll()" />
-    </div>
-    <div class="flex items-center gap-3">
-      <label class="text-xs text-slate-400 w-28">Min Points: <strong class="text-pink-300">${dbMinPts}</strong></label>
-      <input type="range" min="2" max="15" step="1" value="${dbMinPts}" class="range range-xs range-secondary flex-1" oninput="dbMinPts=+this.value;runAll()" />
-    </div>`;
+function updateSliderDisplays() {
+  document.getElementById('k-display').textContent = kmeansK;
+  document.getElementById('eps-display').textContent = dbEps;
+  document.getElementById('minpts-display').textContent = dbMinPts;
+  document.getElementById('slider-k').value = kmeansK;
+  document.getElementById('slider-eps').value = dbEps;
+  document.getElementById('slider-minpts').value = dbMinPts;
 }
 
 function renderTabs() {
@@ -614,6 +892,9 @@ function renderTabs() {
   const el = document.getElementById('tab-content');
   if (currentTab === 'insights') {
     el.innerHTML = `<div class="fade-in">${INSIGHTS[currentDataset]}</div>`;
+  } else if (currentTab === 'algo-code') {
+    el.innerHTML = `<div class="fade-in">${ALGO_CODE}</div>`;
+    Prism.highlightAll();
   } else {
     el.innerHTML = `<div class="fade-in">${CODE[currentTab]}</div>`;
     Prism.highlightAll();
@@ -628,35 +909,59 @@ function selectDataset(id) {
   currentDataset = id;
   const d = DEFAULTS[id];
   kmeansK = d.k; dbEps = d.eps; dbMinPts = d.minPts;
+  updateSliderDisplays();
   renderDatasetPicker();
-  renderControls();
-  runAll();
   if(currentTab==='insights') renderTabs();
+  // Don't auto-run — wait for button click
 }
 
-function runAll() {
-  const ds = generateDataset(currentDataset);
-  const kmResult = runKMeans(ds.points, kmeansK);
-  const dbResult = runDBSCAN(ds.points, dbEps, dbMinPts);
+function redrawCanvases() {
+  if (!lastKmResult || !lastDbResult || !lastDataset) return;
+  drawScatter('canvas-kmeans', lastKmResult, lastDataset.xLabel, lastDataset.yLabel, true);
+  drawScatter('canvas-dbscan', lastDbResult, lastDataset.xLabel, lastDataset.yLabel, false);
+}
 
-  drawScatter('canvas-kmeans', kmResult, ds.xLabel, ds.yLabel, true);
-  drawScatter('canvas-dbscan', dbResult, ds.xLabel, ds.yLabel, false);
+function runAnalysis() {
+  const btn = document.getElementById('run-btn');
+  btn.classList.add('running');
+  btn.textContent = '⏳ Running...';
 
-  document.getElementById('kmeans-time').textContent = `${kmResult.executionMs.toFixed(1)}ms`;
-  document.getElementById('dbscan-time').textContent = `${dbResult.executionMs.toFixed(1)}ms`;
+  // Small delay so the UI updates before heavy computation
+  setTimeout(() => {
+    const ds = generateDataset(currentDataset);
+    lastDataset = ds;
 
-  renderBenchmarks(kmResult, dbResult);
-  renderControls();
+    const kmResult = runKMeans(ds.points, kmeansK);
+    const dbResult = runDBSCAN(ds.points, dbEps, dbMinPts);
+    lastKmResult = kmResult;
+    lastDbResult = dbResult;
+    hasRun = true;
+
+    // Hide waiting states
+    document.getElementById('kmeans-waiting').style.display = 'none';
+    document.getElementById('dbscan-waiting').style.display = 'none';
+
+    drawScatter('canvas-kmeans', kmResult, ds.xLabel, ds.yLabel, true);
+    drawScatter('canvas-dbscan', dbResult, ds.xLabel, ds.yLabel, false);
+
+    document.getElementById('kmeans-time').textContent = `${kmResult.executionMs.toFixed(1)}ms`;
+    document.getElementById('dbscan-time').textContent = `${dbResult.executionMs.toFixed(1)}ms`;
+
+    renderBenchmarks(kmResult, dbResult);
+    renderDataTable(ds);
+
+    btn.innerHTML = '▶ Run Analysis';
+    btn.classList.remove('running');
+  }, 30);
 }
 
 // --- INIT ---
 renderDatasetPicker();
-renderControls();
+updateSliderDisplays();
 renderTabs();
-runAll();
 
-// Resize handler
-window.addEventListener('resize', () => runAll());
+// Resize handler (only redraw if already run)
+window.addEventListener('resize', () => { if(hasRun) redrawCanvases(); });
 </script>
 </body>
 </html>
