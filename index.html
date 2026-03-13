@@ -230,8 +230,46 @@
 
   <!-- Key Insights (shown after benchmark) -->
   <div class="glass-card p-5 mb-5 fade-in" id="insights-section" style="display:none;">
-    <h2 class="text-lg font-bold mb-3 text-slate-200">💡 Key Insights</h2>
+    <h2 class="text-lg font-bold mb-3 text-slate-200">📋 Business Analysis</h2>
     <div id="insights-content"></div>
+  </div>
+
+  <!-- Scaling Benchmark -->
+  <div class="glass-card p-5 mb-5 fade-in" id="scaling-section" style="display:none;">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-bold text-slate-200">📈 Scaling Benchmark</h2>
+      <button id="scaling-btn" onclick="runScalingBenchmark()" class="btn btn-sm bg-slate-700 hover:bg-slate-600 text-slate-200 border-0 gap-1">
+        🚀 Run All Sizes
+      </button>
+    </div>
+    <p class="text-xs text-slate-400 mb-3">Tests S → XXXL on the current dataset to show how each algorithm's execution time scales with data size.</p>
+    <canvas id="canvas-scaling" style="height:250px;"></canvas>
+    <div id="scaling-summary" class="mt-3"></div>
+  </div>
+
+  <!-- Decision Matrix -->
+  <div class="glass-card p-5 mb-5 fade-in" id="matrix-section" style="display:none;">
+    <h2 class="text-lg font-bold text-slate-200 mb-3">🎯 When to Use Which?</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-700/50">
+            <th class="text-left py-2 px-3 text-slate-400 font-semibold">Business Scenario</th>
+            <th class="text-center py-2 px-3 text-indigo-300 font-semibold">KMeans</th>
+            <th class="text-center py-2 px-3 text-pink-300 font-semibold">DBSCAN</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-300">
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"Group customers into 5 segments for our campaign"</td><td class="text-center py-2 px-3">✅ Perfect</td><td class="text-center py-2 px-3">⚠️ Possible</td></tr>
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"Find unusual transactions in our payment data"</td><td class="text-center py-2 px-3">❌ Can't detect outliers</td><td class="text-center py-2 px-3">✅ Built-in</td></tr>
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"We don't know how many groups exist"</td><td class="text-center py-2 px-3">❌ Must specify k</td><td class="text-center py-2 px-3">✅ Auto-discovers</td></tr>
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"Process 10M records in real-time"</td><td class="text-center py-2 px-3">✅ Fast (O(n·k))</td><td class="text-center py-2 px-3">⚠️ Slow without index</td></tr>
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"Map delivery zones from GPS data"</td><td class="text-center py-2 px-3">⚠️ Only circular zones</td><td class="text-center py-2 px-3">✅ Any shape</td></tr>
+          <tr class="border-b border-slate-700/30"><td class="py-2 px-3">"Results must be reproducible every run"</td><td class="text-center py-2 px-3">⚠️ Depends on init</td><td class="text-center py-2 px-3">✅ Deterministic</td></tr>
+          <tr><td class="py-2 px-3">"Non-technical stakeholders need to understand it"</td><td class="text-center py-2 px-3">✅ Simple concept</td><td class="text-center py-2 px-3">⚠️ ε and minPts confuse people</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Data Preview -->
@@ -566,32 +604,81 @@ function renderDataTable(ds) {
 // ============================================================
 // INSIGHTS & CODE TABS
 // ============================================================
-const INSIGHTS = {
-  'server-logs': `
-    <h3 class="text-base font-bold text-slate-200 mb-2">🖥️ Server Logs — What to Notice</h3>
-    <ul class="list-disc list-inside text-sm text-slate-400 space-y-1.5">
-      <li><strong class="text-indigo-300">KMeans</strong> forces every point into a cluster — including anomalies. Your alerting system would miss genuinely suspicious requests.</li>
-      <li><strong class="text-pink-300">DBSCAN</strong> naturally flags sparse outliers as <em>noise</em> (grey points), making it ideal for anomaly detection in monitoring dashboards.</li>
-      <li>Try lowering DBSCAN's <code class="text-pink-200">ε</code> — you'll see more points flagged as anomalies, giving tighter cluster boundaries.</li>
-      <li>KMeans with <code class="text-indigo-200">k=3</code> works well here because the clusters are roughly spherical, but it can't tell you <em>which</em> points don't belong.</li>
-    </ul>`,
-  'sales-data': `
-    <h3 class="text-base font-bold text-slate-200 mb-2">🛒 Sales Data — What to Notice</h3>
-    <ul class="list-disc list-inside text-sm text-slate-400 space-y-1.5">
-      <li><strong class="text-indigo-300">KMeans</strong> does well when you already know how many customer segments you want (<code class="text-indigo-200">k=4</code>: bargain hunters, casuals, whales, VIPs).</li>
-      <li><strong class="text-pink-300">DBSCAN</strong> can <em>discover</em> the number of segments automatically — and it separates one-off weird transactions as noise.</li>
-      <li>This is a common marketing analytics scenario: RFM segmentation. KMeans is the industry standard, but DBSCAN avoids forcing edge-case customers into segments they don't belong to.</li>
-      <li>Try increasing <code class="text-indigo-200">k</code> to 6 — KMeans starts splitting natural groups in half. DBSCAN stays stable.</li>
-    </ul>`,
-  'geo-clusters': `
-    <h3 class="text-base font-bold text-slate-200 mb-2">🌍 Geo Clusters — What to Notice</h3>
-    <ul class="list-disc list-inside text-sm text-slate-400 space-y-1.5">
-      <li>This is where <strong class="text-pink-300">DBSCAN shines</strong>. The crescent-moon shape is <em>non-convex</em> — KMeans literally cannot learn this shape because it uses distance to centroids.</li>
-      <li><strong class="text-indigo-300">KMeans</strong> slices the crescent into chunks no matter what <code class="text-indigo-200">k</code> you choose. It optimises for spherical clusters.</li>
-      <li>Real-world examples: delivery zone mapping, taxi ride clustering, wildfire spread patterns — all produce non-convex geometries.</li>
-      <li>This is the go-to demo for explaining <em>when not to use KMeans</em>. Great for stakeholder buy-in when proposing DBSCAN.</li>
-    </ul>`
-};
+function generateBusinessVerdict(km, db, datasetId, size) {
+  const totalPts = km.assignments.length;
+  const dbNoise = db.assignments.filter(a => a === -1).length;
+
+  // --- Anomaly Detection ---
+  let noiseText = `KMeans forced all ${totalPts} data points into clusters — including outliers. Nothing is flagged for review. `;
+  if (dbNoise > 0) {
+    const noiseMap = {
+      'server-logs': `DBSCAN flagged ${dbNoise} server requests as anomalous — these don't match any normal usage pattern. In production, each could be a DDoS probe, a memory-leaking service, or a failing node. Your ops team would investigate these; KMeans would have buried them inside normal clusters.`,
+      'sales-data': `DBSCAN identified ${dbNoise} customer transactions that don't fit any natural segment — potential fraud, employee test accounts, or one-time gift buyers. Targeting these in a marketing campaign wastes budget. KMeans would have lumped them into real segments, diluting campaign effectiveness.`,
+      'geo-clusters': `DBSCAN flagged ${dbNoise} locations as geographic outliers — remote sensors, GPS errors, or genuinely isolated events. For delivery routing, including these in zone planning creates inefficient routes to nowhere.`
+    };
+    noiseText += noiseMap[datasetId];
+  } else {
+    noiseText += 'Both algorithms assigned all points to clusters. Try lowering ε to see if DBSCAN can surface hidden outliers.';
+  }
+
+  // --- Performance Impact ---
+  const kmTime = km.executionMs, dbTime = db.executionMs;
+  let perfText;
+  if (kmTime <= dbTime) {
+    const ratio = (dbTime / kmTime).toFixed(1);
+    perfText = `KMeans completed in ${kmTime.toFixed(1)}ms vs DBSCAN's ${dbTime.toFixed(1)}ms — KMeans was ${ratio}× faster. For real-time dashboards processing thousands of requests, this speed gap matters. For overnight batch analysis of customer segments, it's irrelevant.`;
+  } else {
+    const ratio = (kmTime / dbTime).toFixed(1);
+    perfText = `DBSCAN completed in ${dbTime.toFixed(1)}ms vs KMeans' ${kmTime.toFixed(1)}ms — DBSCAN was ${ratio}× faster. This is unusual and likely due to the small dataset size (${totalPts} points). At scale, KMeans typically wins on speed.`;
+  }
+
+  // --- Cluster Quality ---
+  const kmSil = km.silhouette, dbSil = db.silhouette;
+  function silLabel(s) {
+    if (s > 0.7) return 'Excellent separation — the groups are distinct and well-defined. High confidence in the segmentation.';
+    if (s > 0.5) return 'Good separation — clusters are meaningful but some points sit near boundaries. Worth reviewing edge cases.';
+    if (s > 0.25) return 'Moderate separation — clusters overlap somewhat. The algorithm is finding structure but it\'s not crisp. Consider tuning parameters.';
+    return 'Weak separation — clusters are fuzzy and overlapping. The algorithm may be forcing structure that isn\'t there.';
+  }
+  const winner = kmSil >= dbSil ? 'KMeans' : 'DBSCAN';
+  const qualityText = `KMeans scored ${kmSil.toFixed(3)} — ${silLabel(kmSil)} DBSCAN scored ${dbSil.toFixed(3)} — ${silLabel(dbSil)} ${winner} produced more distinct groupings for this data shape.`;
+
+  // --- Shape Fit ---
+  const shapeMap = {
+    'server-logs': 'These clusters are roughly spherical (circular blobs of similar servers). Both algorithms handle this well, but KMeans is the natural fit — it was literally designed for spherical clusters.',
+    'sales-data': 'Customer segments are roughly spherical with a few outliers. KMeans is the industry standard for RFM segmentation, but DBSCAN\'s ability to exclude non-customers from segments can improve targeting precision.',
+    'geo-clusters': 'This data has crescent/moon shapes — non-convex geometry. KMeans CANNOT learn non-convex shapes because it draws circular boundaries around centroids. Look at how it slices the crescents into artificial chunks. DBSCAN follows the actual density contour. For delivery zones, service areas, or any spatial analysis — this is why DBSCAN exists.'
+  };
+
+  // --- Bottom Line ---
+  const bottomMap = {
+    'server-logs': '<strong>Bottom Line:</strong> For server monitoring, use DBSCAN if you need anomaly detection (finding the "weird" servers). Use KMeans if you just need to group servers into operational tiers (low/medium/high usage).',
+    'sales-data': '<strong>Bottom Line:</strong> For customer segmentation, KMeans is simpler and faster when you know your segments. DBSCAN is better when you want the data to tell you how many segments exist — and which customers don\'t belong to any.',
+    'geo-clusters': '<strong>Bottom Line:</strong> For geographic/spatial data with irregular shapes, DBSCAN is the clear winner. KMeans should not be used for non-convex spatial data — full stop.'
+  };
+
+  return `<div class="space-y-4">
+  <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+    <h3 class="text-sm font-bold text-amber-300 mb-2">🔍 Anomaly Detection</h3>
+    <p class="text-sm text-slate-300 leading-relaxed">${noiseText}</p>
+  </div>
+  <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+    <h3 class="text-sm font-bold text-blue-300 mb-2">⚡ Performance Impact</h3>
+    <p class="text-sm text-slate-300 leading-relaxed">${perfText}</p>
+  </div>
+  <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+    <h3 class="text-sm font-bold text-green-300 mb-2">📊 Cluster Quality</h3>
+    <p class="text-sm text-slate-300 leading-relaxed">${qualityText}</p>
+  </div>
+  <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+    <h3 class="text-sm font-bold text-purple-300 mb-2">🔷 Shape Fit</h3>
+    <p class="text-sm text-slate-300 leading-relaxed">${shapeMap[datasetId]}</p>
+  </div>
+  <div class="bg-indigo-500/10 rounded-xl p-4 border border-indigo-500/20">
+    <p class="text-sm text-slate-200 leading-relaxed">${bottomMap[datasetId]}</p>
+  </div>
+</div>`;
+}
 
 const ALGO_CODE = `<div class="space-y-4">
 <h3 class="text-base font-bold text-slate-200 mb-1">⚙️ Actual JavaScript Algorithms Used in This Demo</h3>
@@ -917,9 +1004,145 @@ function updateSliderDisplays() {
 }
 
 function renderInsights() {
-  if (!hasRun) return;
+  if (!hasRun || !lastKmResult || !lastDbResult) return;
   document.getElementById('insights-section').style.display = 'block';
-  document.getElementById('insights-content').innerHTML = `<div class="fade-in">${INSIGHTS[currentDataset]}</div>`;
+  document.getElementById('insights-content').innerHTML = `<div class="fade-in">${generateBusinessVerdict(lastKmResult, lastDbResult, currentDataset, datasetSize)}</div>`;
+  // Also show the scaling section (but don't run it automatically)
+  document.getElementById('scaling-section').style.display = 'block';
+  document.getElementById('matrix-section').style.display = 'block';
+}
+
+function runScalingBenchmark() {
+  document.getElementById('scaling-section').style.display = 'block';
+  const btn = document.getElementById('scaling-btn');
+  btn.textContent = '⏳ Running...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    const sizes = ['S', 'M', 'L', 'XL', 'XXXL'];
+    const kmTimes = [], dbTimes = [], pointCounts = [];
+
+    sizes.forEach(size => {
+      const oldSize = datasetSize;
+      datasetSize = size;
+      const ds = generateDataset(currentDataset);
+      pointCounts.push(ds.points.length);
+
+      const km = runKMeans(ds.points, kmeansK);
+      const db = runDBSCAN(ds.points, dbEps, dbMinPts);
+      kmTimes.push(km.executionMs);
+      dbTimes.push(db.executionMs);
+      datasetSize = oldSize;
+    });
+
+    drawScalingChart(sizes, pointCounts, kmTimes, dbTimes);
+
+    const ratio = (dbTimes[4] / kmTimes[4]).toFixed(1);
+    const kmGrowth = (kmTimes[4] / kmTimes[0]).toFixed(1);
+    const dbGrowth = (dbTimes[4] / dbTimes[0]).toFixed(1);
+
+    document.getElementById('scaling-summary').innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+          <div class="text-xs text-slate-500 mb-1">Speed Gap at XXXL</div>
+          <div class="font-bold text-slate-200">DBSCAN is ${ratio}× slower</div>
+          <div class="text-xs text-slate-400 mt-1">This grows with data size because DBSCAN checks every point's neighborhood (O(n²) without spatial index)</div>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+          <div class="text-xs text-slate-500 mb-1">KMeans Scaling</div>
+          <div class="font-bold text-indigo-300">${kmGrowth}× slower from S→XXXL</div>
+          <div class="text-xs text-slate-400 mt-1">KMeans scales roughly linearly — each iteration is O(n×k), very predictable</div>
+        </div>
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+          <div class="text-xs text-slate-500 mb-1">DBSCAN Scaling</div>
+          <div class="font-bold text-pink-300">${dbGrowth}× slower from S→XXXL</div>
+          <div class="text-xs text-slate-400 mt-1">DBSCAN's naive implementation scales quadratically — a spatial index (R-tree, KD-tree) would bring this down to O(n log n)</div>
+        </div>
+      </div>
+    `;
+
+    btn.textContent = '🚀 Run All Sizes';
+    btn.disabled = false;
+  }, 30);
+}
+
+function drawScalingChart(sizes, pointCounts, kmTimes, dbTimes) {
+  const canvas = document.getElementById('canvas-scaling');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 25, right: 30, bottom: 40, left: 60 };
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  const maxTime = Math.max(...kmTimes, ...dbTimes) * 1.15;
+
+  // Grid
+  ctx.strokeStyle = getGridColor();
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ph / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + pw, y); ctx.stroke();
+    ctx.fillStyle = getTickColor(); ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxTime - (maxTime / 4) * i) + 'ms', pad.left - 8, y + 3);
+  }
+
+  // X labels
+  ctx.textAlign = 'center'; ctx.fillStyle = getTickColor(); ctx.font = '11px system-ui';
+  sizes.forEach((s, i) => {
+    const x = pad.left + (pw / (sizes.length - 1)) * i;
+    ctx.fillText(s + ' (' + pointCounts[i] + ')', x, H - pad.bottom + 18);
+  });
+
+  // Axis labels
+  ctx.fillStyle = getLabelColor(); ctx.font = '11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Dataset Size (points)', pad.left + pw / 2, H - 4);
+  ctx.save(); ctx.translate(14, pad.top + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Execution Time (ms)', 0, 0); ctx.restore();
+
+  // Draw lines
+  function drawLine(times, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    times.forEach((t, i) => {
+      const x = pad.left + (pw / (sizes.length - 1)) * i;
+      const y = pad.top + ph - (t / maxTime) * ph;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    times.forEach((t, i) => {
+      const x = pad.left + (pw / (sizes.length - 1)) * i;
+      const y = pad.top + ph - (t / maxTime) * ph;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      // Value label
+      ctx.fillStyle = color; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(t.toFixed(0) + 'ms', x, y - 10);
+    });
+  }
+
+  drawLine(kmTimes, '#6366f1');
+  drawLine(dbTimes, '#f472b6');
+
+  // Legend
+  const legendX = pad.left + 10, legendY = pad.top + 8;
+  ctx.font = '11px system-ui';
+  ctx.fillStyle = '#6366f1'; ctx.fillRect(legendX, legendY, 12, 3);
+  ctx.fillStyle = getTickColor(); ctx.textAlign = 'left';
+  ctx.fillText('KMeans', legendX + 16, legendY + 5);
+  ctx.fillStyle = '#f472b6'; ctx.fillRect(legendX + 80, legendY, 12, 3);
+  ctx.fillStyle = getTickColor();
+  ctx.fillText('DBSCAN', legendX + 96, legendY + 5);
 }
 
 function renderTabs() {
