@@ -294,11 +294,22 @@ function generateDataset(id) {
     return { id:id, name:'Sales Data', xLabel:'Avg Order ($)', yLabel:'Purchase Freq (orders/yr)', icon:'🛒', points:pts,
       columns:['Avg Order ($)','Purchase Freq'] };
   }
-  // geo-clusters
-  for(var i=0;i<n(90);i++){var a=Math.PI*rng();var r=35+gauss()*3;pts.push({x:50+r*Math.cos(a),y:40+r*Math.sin(a)});}
-  for(var i=0;i<n(70);i++){var a=Math.PI*rng();var r=20+gauss()*3;pts.push({x:55+r*Math.cos(a),y:47-r*Math.sin(a)});}
-  for(var i=0;i<n(50);i++) pts.push({x:20+gauss()*4,y:75+gauss()*4});
-  for(var i=0;i<n(18);i++) pts.push({x:rng()*100,y:rng()*100});
+  if (id === 'spirals') {
+    // Two interleaving spirals — impossible for KMeans, natural for DBSCAN
+    for(var i=0;i<n(130);i++){var t=3.5*Math.PI*rng();var r=4+t*2.5+gauss()*1.5;pts.push({x:50+r*Math.cos(t)*0.7,y:50+r*Math.sin(t)*0.7});}
+    for(var i=0;i<n(130);i++){var t=3.5*Math.PI*rng();var r=4+t*2.5+gauss()*1.5;pts.push({x:50-r*Math.cos(t)*0.7,y:50-r*Math.sin(t)*0.7});}
+    for(var i=0;i<n(10);i++) pts.push({x:rng()*100,y:rng()*100});
+    return { id:id, name:'Spirals', xLabel:'Feature X', yLabel:'Feature Y', icon:'🌀', points:pts,
+      columns:['Feature X','Feature Y'] };
+  }
+  // geo-clusters — classic interlocking half-moons (make_moons pattern)
+  // Moon 1: upper crescent from (75,50) through (50,75) to (25,50)
+  for(var i=0;i<n(90);i++){var a=Math.PI*rng();var r=25+gauss()*2;pts.push({x:50+r*Math.cos(a),y:50+r*Math.sin(a)});}
+  // Moon 2: lower crescent shifted right — from (50,50) through (75,25) to (100,50)
+  for(var i=0;i<n(90);i++){var a=Math.PI*rng();var r=25+gauss()*2;pts.push({x:75-r*Math.cos(a),y:50-r*Math.sin(a)});}
+  // Small isolated blob
+  for(var i=0;i<n(30);i++) pts.push({x:15+gauss()*3,y:85+gauss()*3});
+  for(var i=0;i<n(15);i++) pts.push({x:rng()*100,y:rng()*100});
   return { id:id, name:'Geo Clusters', xLabel:'Longitude (scaled)', yLabel:'Latitude (scaled)', icon:'🌍', points:pts,
     columns:['Longitude','Latitude'] };
 }
@@ -306,7 +317,8 @@ function generateDataset(id) {
 var DATASETS_META = [
   { id:'server-logs', name:'Server Logs', icon:'🖥️', hint:'Spherical clusters + anomalies' },
   { id:'sales-data', name:'Sales Data', icon:'🛒', hint:'4 customer segments + noise' },
-  { id:'geo-clusters', name:'Geo Clusters', icon:'🌍', hint:'Non-convex shapes (hard for KMeans!)' },
+  { id:'geo-clusters', name:'Geo Clusters', icon:'🌍', hint:'Interlocking moons (KMeans fails!)' },
+  { id:'spirals', name:'Spirals', icon:'🌀', hint:'Two spirals — KMeans is helpless' },
 ];
 
 // ============================================================
@@ -556,7 +568,8 @@ function generateBusinessVerdict(km, db, datasetId, size) {
     var noiseMap = {
       'server-logs': 'DBSCAN flagged ' + dbNoise + ' server requests as anomalous — these don\'t match any normal usage pattern. In production, each could be a DDoS probe, a memory-leaking service, or a failing node. Your ops team would investigate these; KMeans would have buried them inside normal clusters.',
       'sales-data': 'DBSCAN identified ' + dbNoise + ' customer transactions that don\'t fit any natural segment — potential fraud, employee test accounts, or one-time gift buyers. Targeting these in a marketing campaign wastes budget. KMeans would have lumped them into real segments, diluting campaign effectiveness.',
-      'geo-clusters': 'DBSCAN flagged ' + dbNoise + ' locations as geographic outliers — remote sensors, GPS errors, or genuinely isolated events. For delivery routing, including these in zone planning creates inefficient routes to nowhere.'
+      'geo-clusters': 'DBSCAN flagged ' + dbNoise + ' locations as geographic outliers — remote sensors, GPS errors, or genuinely isolated events. For delivery routing, including these in zone planning creates inefficient routes to nowhere.',
+      'spirals': 'DBSCAN flagged ' + dbNoise + ' points as noise in the spiral data. In time-series or sensor data with spiral patterns, these outliers represent sensor drift or calibration errors that DBSCAN catches automatically.'
     };
     noiseText += noiseMap[datasetId];
   } else {
@@ -589,14 +602,16 @@ function generateBusinessVerdict(km, db, datasetId, size) {
   var shapeMap = {
     'server-logs': 'These clusters are roughly spherical (circular blobs of similar servers). Both algorithms handle this well, but KMeans is the natural fit — it was literally designed for spherical clusters.',
     'sales-data': 'Customer segments are roughly spherical with a few outliers. KMeans is the industry standard for RFM segmentation, but DBSCAN\'s ability to exclude non-customers from segments can improve targeting precision.',
-    'geo-clusters': 'This data has crescent/moon shapes — non-convex geometry. KMeans CANNOT learn non-convex shapes because it draws circular boundaries around centroids. Look at how it slices the crescents into artificial chunks. DBSCAN follows the actual density contour. For delivery zones, service areas, or any spatial analysis — this is why DBSCAN exists.'
+    'geo-clusters': 'This data has interlocking half-moon shapes — non-convex geometry. KMeans CANNOT separate interlocking shapes because it draws straight-line boundaries between centroids. Look at how it slices through BOTH moons. DBSCAN follows the actual density contour of each crescent. For delivery zones, service areas, or any spatial analysis — this is why DBSCAN exists.',
+    'spirals': 'Two interleaving spirals — the ultimate stress test. KMeans draws a straight line through the center, assigning half of EACH spiral to each cluster. DBSCAN traces the density path of each spiral arm independently. This pattern appears in time-series data (seasonal cycles), sensor readings (rotating equipment), and geographic migration flows.'
   };
 
   // --- Bottom Line ---
   var bottomMap = {
     'server-logs': '<strong>Bottom Line:</strong> For server monitoring, use DBSCAN if you need anomaly detection (finding the "weird" servers). Use KMeans if you just need to group servers into operational tiers (low/medium/high usage).',
     'sales-data': '<strong>Bottom Line:</strong> For customer segmentation, KMeans is simpler and faster when you know your segments. DBSCAN is better when you want the data to tell you how many segments exist — and which customers don\'t belong to any.',
-    'geo-clusters': '<strong>Bottom Line:</strong> For geographic/spatial data with irregular shapes, DBSCAN is the clear winner. KMeans should not be used for non-convex spatial data — full stop.'
+    'geo-clusters': '<strong>Bottom Line:</strong> For geographic/spatial data with irregular shapes, DBSCAN is the clear winner. KMeans should not be used for non-convex spatial data — full stop.',
+    'spirals': '<strong>Bottom Line:</strong> Spirals are the definitive DBSCAN showcase. If your data has ANY non-linear structure — rotating patterns, nested curves, or interleaved groups — KMeans will always fail. DBSCAN is the only choice.'
   };
 
   return '<div class="space-y-4">\
@@ -917,7 +932,8 @@ var SIZE_LABELS = { S: '~100 pts', M: '~200 pts', L: '~600 pts', XL: '~1.6K pts'
 var DEFAULTS = {
   'server-logs': { k:3, eps:12, minPts:5 },
   'sales-data':  { k:4, eps:10, minPts:4 },
-  'geo-clusters':{ k:3, eps:7, minPts:5 },
+  'geo-clusters':{ k:3, eps:6, minPts:5 },
+  'spirals':     { k:2, eps:4, minPts:5 },
 };
 
 // ============================================================
